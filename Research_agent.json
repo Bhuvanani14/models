@@ -1,0 +1,205 @@
+{
+  "name": "Research_agent",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "research",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "d0c0bf58-de5c-4682-b1de-018cd081c91a",
+      "name": "Webhook",
+      "webhookId": "999a42ad-4137-4c20-8dd8-d7e7581159bc"
+    },
+    {
+      "parameters": {
+        "jsCode": "const body = $input.first().json.body || $input.first().json;\n\nconst destination = body.destination || \"Goa\";\nconst travelers = body.travelers || 1;\nconst dates = body.dates || \"\";\nconst preferences = body.preferences || \"\";\n\nconsole.log(\"=== RESEARCH AGENT ===\");\nconsole.log(\"Destination:\", destination);\nconsole.log(\"Travelers:\", travelers);\nconsole.log(\"Dates:\", dates);\nconsole.log(\"Preferences:\", preferences);\n\nreturn [{\n  destination: destination,\n  travelers: travelers,\n  dates: dates,\n  preferences: preferences\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        208,
+        0
+      ],
+      "id": "07047d95-9450-45e3-92df-acc1c396a881",
+      "name": "Extract Request Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const data = $json;\n\nconst prompt = `You are a travel research expert. Provide comprehensive travel information for ${data.destination}, India.\n\nCreate a detailed research report including:\n\n1. DESTINATION OVERVIEW (2-3 sentences)\n- Brief introduction to ${data.destination}\n- What makes it special/unique\n\n2. BEST TIME TO VISIT\n- Best months to visit and why\n- Weather conditions throughout the year\n- Peak vs off-peak seasons\n\n3. CULTURAL INSIGHTS\n- Local customs and etiquette\n- Important festivals or events\n- Language tips (common phrases)\n- Dress code recommendations\n\n4. FOOD & CUISINE\n- Must-try local dishes (5-7 items)\n- Popular restaurants or food areas\n- Dietary considerations\n- Average meal costs\n\n5. TRANSPORTATION\n- How to get around the city\n- Average costs (metro, taxi, auto)\n- Transportation apps to download\n- Traffic tips\n\n6. SAFETY TIPS\n- General safety advice\n- Areas to avoid\n- Emergency contacts\n- Health precautions\n\n7. HIDDEN GEMS\n- 3-5 lesser-known attractions\n- Local experiences tourists miss\n- Off-the-beaten-path recommendations\n\n8. PRACTICAL INFORMATION\n- Currency and payment methods\n- Tipping culture\n- Internet/SIM card info\n- Plug types and voltage\n\nReturn the response in valid JSON format with this structure:\n{\n  \"destination\": \"${data.destination}\",\n  \"overview\": \"Brief overview text\",\n  \"best_time_to_visit\": {\n    \"best_months\": [\"Month1\", \"Month2\"],\n    \"reason\": \"Why these months\",\n    \"weather\": \"Weather description\"\n  },\n  \"cultural_insights\": {\n    \"customs\": [\"Custom 1\", \"Custom 2\"],\n    \"festivals\": [\"Festival 1\", \"Festival 2\"],\n    \"language_tips\": [\"Phrase: Translation\"],\n    \"dress_code\": \"Dress code advice\"\n  },\n  \"food_and_cuisine\": {\n    \"must_try_dishes\": [\n      {\"name\": \"Dish name\", \"description\": \"Brief desc\", \"price_range\": \"₹100-200\"}\n    ],\n    \"food_areas\": [\"Area 1\", \"Area 2\"],\n    \"dietary_notes\": \"Vegetarian/vegan options available\"\n  },\n  \"transportation\": {\n    \"options\": [\"Metro\", \"Taxi\", \"Auto\"],\n    \"average_costs\": {\n      \"metro\": \"₹20-50\",\n      \"taxi\": \"₹10/km\",\n      \"auto\": \"₹8/km\"\n    },\n    \"apps\": [\"Ola\", \"Uber\", \"Metro app\"],\n    \"tips\": \"Traffic tips\"\n  },\n  \"safety_tips\": [\n    \"Safety tip 1\",\n    \"Safety tip 2\"\n  ],\n  \"hidden_gems\": [\n    {\n      \"name\": \"Place name\",\n      \"description\": \"What makes it special\",\n      \"how_to_reach\": \"How to get there\"\n    }\n  ],\n  \"practical_info\": {\n    \"currency\": \"INR\",\n    \"tipping\": \"Tipping customs\",\n    \"internet\": \"SIM card info\",\n    \"electricity\": \"230V, Type C/D plugs\"\n  }\n}\n\nReturn ONLY valid JSON, no markdown, no code blocks.`;\n\nreturn [{\n  prompt: prompt,\n  destination: data.destination,\n  original_request: data\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        416,
+        0
+      ],
+      "id": "0a3692c5-05aa-47c0-886a-41bfc8d76fdb",
+      "name": "Build Research Prompt"
+    },
+    {
+      "parameters": {
+        "modelId": {
+          "__rl": true,
+          "value": "models/gemini-2.5-flash",
+          "mode": "list",
+          "cachedResultName": "models/gemini-2.5-flash"
+        },
+        "messages": {
+          "values": [
+            {
+              "content": "={{ $json.prompt }}"
+            }
+          ]
+        },
+        "builtInTools": {},
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.googleGemini",
+      "typeVersion": 1.1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "07bae151-06f5-4d74-be64-513a51d39c1d",
+      "name": "Message a model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "xYNTOALO6TizD5Gz",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const geminiResponse = $input.first().json;\nconst requestData = $node[\"Build Research Prompt\"].json;\n\nconsole.log(\"=== PARSING RESEARCH ===\");\n\n// Extract text from Gemini\nconst responseText = geminiResponse.content?.parts?.[0]?.text || geminiResponse.text || \"\";\n\nconsole.log(\"Response length:\", responseText.length);\n\n// Extract JSON\nconst jsonMatch = responseText.match(/\\{[\\s\\S]*\\}/);\n\nif (jsonMatch) {\n  try {\n    let cleanJson = jsonMatch[0]\n      .replace(/```json\\n/g, '')\n      .replace(/```\\n/g, '')\n      .replace(/```/g, '')\n      .trim();\n    \n    const research = JSON.parse(cleanJson);\n    \n    console.log(\"✅ Successfully parsed research\");\n    console.log(\"Destination:\", research.destination);\n    console.log(\"Best months:\", research.best_time_to_visit?.best_months?.join(\", \"));\n    \n    return [research];\n    \n  } catch (parseError) {\n    console.error(\"❌ JSON parse error:\", parseError.message);\n    \n    return [{\n      parse_failed: true,\n      error: parseError.message,\n      raw_response: responseText.substring(0, 1000)\n    }];\n  }\n} else {\n  console.error(\"❌ No JSON found\");\n  \n  return [{\n    parse_failed: true,\n    error: \"No JSON found in response\",\n    raw_response: responseText.substring(0, 1000)\n  }];\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        976,
+        0
+      ],
+      "id": "631f5da5-d08e-40bd-ad7c-6a445a62c081",
+      "name": "Parse Research"
+    },
+    {
+      "parameters": {
+        "jsCode": "const research = $input.first().json;\nconst requestData = $node[\"Build Research Prompt\"].json.original_request;\n\nconsole.log(\"=== FORMATTING RESEARCH RESPONSE ===\");\n\nif (research.parse_failed) {\n  return [{\n    status: \"error\",\n    agent: \"research_agent\",\n    error_message: \"Failed to generate research\",\n    timestamp: new Date().toISOString()\n  }];\n}\n\nconst response = {\n  status: \"success\",\n  agent: \"research_agent\",\n  timestamp: new Date().toISOString(),\n  \n  research: {\n    destination: research.destination || requestData.destination,\n    overview: research.overview || \"\",\n    best_time_to_visit: research.best_time_to_visit || {},\n    cultural_insights: research.cultural_insights || {},\n    food_and_cuisine: research.food_and_cuisine || {},\n    transportation: research.transportation || {},\n    safety_tips: research.safety_tips || [],\n    hidden_gems: research.hidden_gems || [],\n    practical_info: research.practical_info || {}\n  },\n  \n  quick_tips: [\n    `Best months to visit: ${research.best_time_to_visit?.best_months?.join(\", \") || \"Year-round\"}`,\n    `Must-try: ${research.food_and_cuisine?.must_try_dishes?.[0]?.name || \"Local cuisine\"}`,\n    `Getting around: ${research.transportation?.options?.[0] || \"Local transport\"}`,\n    `Hidden gem: ${research.hidden_gems?.[0]?.name || \"Explore local areas\"}`\n  ]\n};\n\nconsole.log(\"✅ Research response formatted\");\nreturn [response];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1184,
+        0
+      ],
+      "id": "e423aacf-5097-4984-8f8d-835c4aed1fc7",
+      "name": "Format Research Response"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.5,
+      "position": [
+        1392,
+        0
+      ],
+      "id": "b4437aef-1a6a-4243-ad1a-ca7a3fade3a1",
+      "name": "Send Research Response"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Extract Request Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract Request Data": {
+      "main": [
+        [
+          {
+            "node": "Build Research Prompt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Research Prompt": {
+      "main": [
+        [
+          {
+            "node": "Message a model",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Message a model": {
+      "main": [
+        [
+          {
+            "node": "Parse Research",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Research": {
+      "main": [
+        [
+          {
+            "node": "Format Research Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Format Research Response": {
+      "main": [
+        [
+          {
+            "node": "Send Research Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "availableInMCP": false,
+    "timeSavedMode": "fixed",
+    "callerPolicy": "workflowsFromSameOwner"
+  },
+  "versionId": "fdd29087-c1b1-4d0d-a62e-1cd54eafc885",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "33a978a93b30ab184ae6fb62e19b805fe0483c2d8a426ea771307fe443603522"
+  },
+  "id": "xLBQo6iXmJlYOwzV",
+  "tags": []
+}
